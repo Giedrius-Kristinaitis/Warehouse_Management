@@ -13,6 +13,10 @@
                 <div class="col-sm">
                     <a class="my_button btn btn-dark" href="${pageContext.request.contextPath}/?form=contract&action=add" role="button">New Contract</a>
                 </div>
+
+                <div class="col-sm">
+                    <a class="my_button btn btn-dark" href="${pageContext.request.contextPath}/?form=contract&action=report&display=false" role="button">New Report</a>
+                </div>
             </div>
         </div>
 

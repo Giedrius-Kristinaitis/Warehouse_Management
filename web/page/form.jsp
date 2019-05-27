@@ -47,6 +47,10 @@
                             <%@ include file="components/contract_edit_form.jsp" %>
                         </c:when>
 
+                        <c:when test="${param.action == 'report'}">
+                            <%@ include file="components/contract_report_form.jsp" %>
+                        </c:when>
+
                         <c:otherwise>
                             <%@ include file="components/contract_list.jsp" %>
                         </c:otherwise>

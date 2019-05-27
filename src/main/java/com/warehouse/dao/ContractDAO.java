@@ -3,10 +3,13 @@ package com.warehouse.dao;
 import com.warehouse.Constants;
 import com.warehouse.model.Client;
 import com.warehouse.model.Contract;
+import com.warehouse.model.ContractReport;
 import com.warehouse.model.Employee;
 
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.text.SimpleDateFormat;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,6 +44,40 @@ public class ContractDAO extends AbstractDAO<Contract> {
     private static final String DELETE = "DELETE FROM warehouse.contract WHERE warehouse.contract.id = ?";
 
     private static final String DELETE_BILLS = "DELETE FROM warehouse.bill WHERE warehouse.bill.fk_contract = ?";
+
+    private static final String QUERY_REPORT = "SELECT " +
+                                                    "sub.status_name, " +
+                                                    "sub.storing_from, " +
+                                                    "sub.storing_until, " +
+                                                    "sub.full_name, " +
+                                                    "sub.bill, " +
+                                                    "sub.excise, " +
+                                                    "sub.group_bill, " +
+                                                    "sub.group_excise, " +
+                                                    "a.total_bill, " +
+                                                    "b.total_excise " +
+                                               "FROM (SELECT " +
+                                                        "warehouse.contract_statuses.name as status_name," +
+                                                        "ARRAY_AGG(warehouse.contract.storing_from) as storing_from, " +
+                                                        "ARRAY_AGG(warehouse.contract.storing_until) as storing_until, " +
+                                                        "ARRAY_AGG(CONCAT(warehouse.client.first_name, ' ', warehouse.client.last_name)) as full_name, " +
+                                                        "ARRAY_AGG(warehouse.bill.ammount) as bill, " +
+                                                        "ARRAY_AGG(warehouse.excise.amount) as excise, " +
+                                                        "ROUND(CAST(SUM(warehouse.bill.ammount) as NUMERIC), 2) as group_bill, " +
+                                                        "ROUND(CAST(SUM(warehouse.excise.amount) as NUMERIC), 2) as group_excise " +
+                                                    "FROM warehouse.contract " +
+                                                        "INNER JOIN warehouse.contract_statuses ON warehouse.contract.status = warehouse.contract_statuses.id_contract_statuses " +
+                                                        "INNER JOIN warehouse.client ON warehouse.contract.fk_client = warehouse.client.personal_code " +
+                                                        "INNER JOIN warehouse.employee ON warehouse.contract.fk_employee = warehouse.employee.time_card_number " +
+                                                        "LEFT JOIN warehouse.bill ON warehouse.bill.fk_contract = warehouse.contract.id " +
+                                                        "LEFT JOIN warehouse.excise ON warehouse.excise.fk_contract = warehouse.contract.id " +
+                                                    "WHERE warehouse.contract.storing_from >= CAST(? as DATE) " +
+                                                        "AND warehouse.contract.storing_until <= CAST(? as DATE) " +
+                                                        "AND warehouse.contract.fk_employee = ? " +
+                                                    "GROUP BY warehouse.contract_statuses.name " +
+                                                    "ORDER BY full_name asc) as sub " +
+                                                "CROSS JOIN (SELECT SUM(warehouse.bill.ammount) total_bill FROM warehouse.bill) as a " +
+                                                "CROSS JOIN (SELECT SUM(warehouse.excise.amount) total_excise FROM warehouse.excise) as b";
     // ***** END OF SQL STATEMENTS/QUERIES FOR CONTRACT TABLE ***** //
 
     /**
@@ -51,6 +88,75 @@ public class ContractDAO extends AbstractDAO<Contract> {
 
         super.QUERY_GET_PAGE = this.QUERY_GET_PAGE;
         super.QUERY_COUNT = this.QUERY_COUNT;
+    }
+
+    /**
+     * Creates a contract report
+     *
+     * @param storingFrom the starting storing date
+     * @param storingUntil the ending storing date
+     * @param employee employee assigned to a contract
+     * @return contract report
+     */
+    public List<ContractReport> getContractReport(String storingFrom, String storingUntil, String employee) {
+        Long employeeId = Long.parseLong(employee.split(" ")[0]);
+
+        List<ContractReport> reports = new ArrayList<>();
+
+        database.connect();
+
+        try {
+            database.prepareStatement(QUERY_REPORT);
+
+            PreparedStatement statement = database.getStatement();
+
+            statement.setString(1, storingFrom);
+            statement.setString(2, storingUntil);
+            statement.setLong(3, employeeId);
+
+            statement.execute();
+
+            ResultSet result = statement.getResultSet();
+
+            while (result.next()) {
+                SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+
+                Date[] storingDates = (Date[]) result.getArray("storing_from").getArray();
+                String[] storingStringDates = new String[storingDates.length];
+
+                for (int i = 0; i < storingDates.length; i++) {
+                    storingStringDates[i] = format.format(storingDates[i]);
+                }
+
+                Date[] storingUntilDates = (Date[]) result.getArray("storing_until").getArray();
+                String[] storingUntilStringDates = new String[storingUntilDates.length];
+
+                for (int i = 0; i < storingUntilDates.length; i++) {
+                    storingUntilStringDates[i] = format.format(storingUntilDates[i]);
+                }
+
+                ContractReport report = new ContractReport(
+                        result.getString("status_name"),
+                        storingStringDates,
+                        storingUntilStringDates,
+                        (String[]) result.getArray("full_name").getArray(),
+                        (Double[]) result.getArray("bill").getArray(),
+                        (Double[]) result.getArray("excise").getArray(),
+                        result.getDouble("group_bill"),
+                        result.getDouble("group_excise"),
+                        result.getDouble("total_bill"),
+                        result.getDouble("total_excise")
+                );
+
+                reports.add(report);
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+
+        database.disconnect();
+
+        return reports;
     }
 
     /**

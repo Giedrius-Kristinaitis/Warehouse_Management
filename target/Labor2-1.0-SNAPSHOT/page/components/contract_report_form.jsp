@@ -24,7 +24,7 @@
             <c:choose>
                 <c:when test="${reports.size() == 0}">
                     <div class="alert alert-warning" role="alert">
-                        No contracts match your specified data
+                        Invalid entered data or no contracts match your specified data
                     </div>
                 </c:when>
 
@@ -93,6 +93,10 @@
                     </table>
                 </c:otherwise>
             </c:choose>
+
+            <div class="col-sm" style="margin: auto">
+                <a class="my_button btn btn-dark" href="${pageContext.request.contextPath}/?form=contract&action=report&display=false" role="button">New Report</a>
+            </div>
         </c:when>
 
         <c:when test="${param.display == 'false'}">

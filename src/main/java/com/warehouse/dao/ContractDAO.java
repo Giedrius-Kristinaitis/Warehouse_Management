@@ -54,8 +54,8 @@ public class ContractDAO extends AbstractDAO<Contract> {
                                                     "sub.excise, " +
                                                     "sub.group_bill, " +
                                                     "sub.group_excise, " +
-                                                    "a.total_bill, " +
-                                                    "b.total_excise " +
+                                                    "SUM(sub.group_bill) OVER() as total_bill, " +
+                                                    "SUM(sub.group_excise) OVER() as total_excise " +
                                                "FROM (SELECT " +
                                                         "warehouse.contract_statuses.name as status_name," +
                                                         "ARRAY_AGG(warehouse.contract.storing_from) as storing_from, " +
@@ -75,9 +75,7 @@ public class ContractDAO extends AbstractDAO<Contract> {
                                                         "AND warehouse.contract.storing_until <= CAST(? as DATE) " +
                                                         "AND warehouse.contract.fk_employee = ? " +
                                                     "GROUP BY warehouse.contract_statuses.name " +
-                                                    "ORDER BY full_name asc) as sub " +
-                                                "CROSS JOIN (SELECT SUM(warehouse.bill.ammount) total_bill FROM warehouse.bill) as a " +
-                                                "CROSS JOIN (SELECT SUM(warehouse.excise.amount) total_excise FROM warehouse.excise) as b";
+                                                    "ORDER BY full_name asc) as sub";
     // ***** END OF SQL STATEMENTS/QUERIES FOR CONTRACT TABLE ***** //
 
     /**
